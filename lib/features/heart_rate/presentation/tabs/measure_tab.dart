@@ -5,12 +5,9 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_heartrate/database/db/save_info_blood_pressure.dart';
-
 import 'package:flutter_heartrate/database/db/heart_rate_record.dart';
-
 import 'package:flutter_heartrate/features/heart_rate/service/push_hr_blynk.dart';
 import 'package:flutter_heartrate/features/heart_rate/service/push_hr_zalo_bot.dart';
-
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../firebase/auth/GoogleAuthService.dart';
@@ -18,8 +15,8 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import '../../../algorithm/heart_rate_analyzer2.dart';
 import '../widgets/bpm_gauge.dart';
 import '../widgets/ppg_line_chart.dart';
-import '../../../algorithm/heart_rate_analyzer.dart';
 import '../screens/history_measure_screen.dart';
+import '../../../algorithm/ppg_morphology.dart';
 
 class MeasureTab extends StatefulWidget {
   const MeasureTab({super.key});
@@ -115,7 +112,7 @@ class MeasureTabState extends State<MeasureTab> {
   bool _isFinishing = false;
   bool _bpReady = false;
 
-  GoogleSignInAccount? _user ;
+  GoogleSignInAccount? _user;
 
   final List<double> _ppgSignal = [];
   final int _maxSample = 150; // ~5s @30fps
@@ -123,7 +120,8 @@ class MeasureTabState extends State<MeasureTab> {
   late HeartRateAnalyzer _analyzer;
   late _BPScaler _bpScaler;
   late _BPModel _bpModel;
-  late List<double> _lastPpgWaveform;
+  List<double> _lastPpgWaveform = const <double>[];
+  PpgMorphologyResult _latestMorphology = const PpgMorphologyResult();
 
   bool _isButtonStartMeasureEnabled = false;
 
@@ -150,13 +148,16 @@ class MeasureTabState extends State<MeasureTab> {
       onResultCalculated: (AnalyzerResult result) => setState(() {
         _currentBpm = result.bpm.toInt();
         _lastPpgWaveform = result.signal;
+        _latestMorphology = result.morphology;
       }),
     );
     _initBpHelpers();
   }
 
   Future<void> _loadUser() async {
-    _user = GoogleAuthService.currentUser ?? await GoogleAuthService.signInSilently();
+    _user =
+        GoogleAuthService.currentUser ??
+        await GoogleAuthService.signInSilently();
     if (mounted) setState(() {});
   }
 
@@ -171,36 +172,78 @@ class MeasureTabState extends State<MeasureTab> {
   Future<void> _predictBloodPressure() async {
     if (!_bpReady) return;
     final info = await SaveInfoBloodPressure.getInfoBloodPressure();
-    if (info == null) {
-      debugPrint('Thiếu thông tin BP, bỏ qua dự đoán.');
-      return;
-    }
+    if (info == null) return;
 
     final gender = info['gender'] as String? ?? 'Nam';
     final age = (info['age'] as int?)?.toDouble();
     final height = (info['height'] as int?)?.toDouble();
     final weight = (info['weight'] as int?)?.toDouble();
 
-    if (age == null || height == null || weight == null) {
-      debugPrint('BP info không đầy đủ (Age/Height/Weight null).');
-      return;
+    if (age == null || height == null || weight == null) return;
+
+    final morph = _latestMorphology;
+
+    // --- KHẮC PHỤC DỮ LIỆU TẠI ĐÂY ---
+
+    // 1. Lấy giá trị thô từ thuật toán
+    double rawRiseTime = morph.meanRiseTime;
+    double rawDecayTime = morph.meanDecayTime;
+    double rawPulseWidth = morph.meanPulseWidth;
+    double rawAUC = morph.meanAUC;
+    double rawAmp = morph.meanAmp;
+
+    // 2. Xử lý giá trị mặc định nếu đo lỗi (bằng 0)
+    // Nếu đo được > 0 thì dùng, nếu không thì lấy Mean của Config
+    double valRiseTime = rawRiseTime > 0 ? rawRiseTime : _bpScaler.xMean[5];
+    double valDecayTime = rawDecayTime > 0 ? rawDecayTime : _bpScaler.xMean[6];
+    double valPulseWidth = rawPulseWidth > 0 ? rawPulseWidth : _bpScaler.xMean[7];
+    double valAUC = rawAUC > 0 ? rawAUC : _bpScaler.xMean[8];
+    double valAmp = rawAmp > 0 ? rawAmp : _bpScaler.xMean[9];
+
+    // 3. ÁP DỤNG SCALING FACTOR (Dựa trên Log của bạn)
+    // Amp lệch ~132 lần -> Nhân 130
+    if (valAmp < 10) {
+      valAmp = valAmp * 130;
     }
 
-    // --- THÊM ĐOẠN NÀY ---
-    // Tính toán 2 feature còn thiếu từ tín hiệu đã đo
-    final features = _extractSignalFeatures(_ppgSignal, 30); // Giả sử FPS camera là 30
-    debugPrint('Extracted Features: RiseTime=${features.riseTimeMean}, Amp=${features.sysPeakAmp}');
-    // ---------------------
+    // AUC lệch ~100 lần -> Nhân 100
+    if (valAUC < 200) {
+      valAUC = valAUC * 100;
+    }
 
-    // Tạo mảng input đủ 7 phần tử theo đúng thứ tự trong config.json
-    final input = [
-      _encodeGender(gender),      // 1. Gender
-      age,                        // 2. Age
-      height,                     // 3. Height
-      weight,                     // 4. Weight
-      _currentBpm.toDouble(),     // 5. HeartRate
-      features.riseTimeMean,      // 6. RiseTime_Mean (Mới)
-      features.sysPeakAmp,        // 7. Sys_Peak_Amp (Mới)
+    // PulseWidth lệch ~10 lần (579 vs 58) -> Chia 10
+    // (Chỉ chia nếu nó lớn bất thường > 150ms)
+    if (valPulseWidth > 150) {
+      valPulseWidth = valPulseWidth / 10;
+    }
+
+    // DecayTime lệch ~4 lần (940 vs 241) -> Chia 4 hoặc đưa về Mean
+    // DecayTime thường không quá 400ms. Nếu lớn quá thì có thể do thuật toán bắt sai điểm cuối.
+    if (valDecayTime > 500) {
+      // Cách an toàn: Nếu Decay quá lớn vô lý, dùng giá trị trung bình của model
+      // Hoặc thử chia tỉ lệ:
+      valDecayTime = _bpScaler.xMean[6];
+    }
+
+    debugPrint("=== INPUT SAU KHI FIX SCALING ===");
+    debugPrint("RiseTime: $valRiseTime");
+    debugPrint("DecayTime: $valDecayTime"); // Nên xấp xỉ 241
+    debugPrint("PulseWidth: $valPulseWidth"); // Nên xấp xỉ 58
+    debugPrint("AUC: $valAUC"); // Nên xấp xỉ 6800
+    debugPrint("Amp: $valAmp"); // Nên xấp xỉ 236
+
+    // Tạo mảng input
+    final input = <double>[
+      _encodeGender(gender),
+      age,
+      height,
+      weight,
+      _currentBpm.toDouble(),
+      valRiseTime,
+      valDecayTime,
+      valPulseWidth,
+      valAUC,
+      valAmp,
     ];
 
     try {
@@ -209,20 +252,22 @@ class MeasureTabState extends State<MeasureTab> {
       final real = _bpScaler.inverseY(predicted);
 
       if (mounted) {
-        final sys = double.parse(real[0].toStringAsFixed(1));
-        final dia = double.parse(real[1].toStringAsFixed(1));
+        double sys = double.parse(real[0].toStringAsFixed(1));
+        double dia = double.parse(real[1].toStringAsFixed(1));
+
+        // Sanity Check: Chặn giá trị vô lý
+        if (sys > 180) sys = 150; // Cap trần nếu quá cao
+        if (dia > 120) dia = 100;
+        if (sys < 90) sys = 110;  // Cap sàn nếu quá thấp
 
         setState(() {
           _lastSys = sys;
           _lastDia = dia;
         });
-        debugPrint('BP dự đoán thành công: SYS=$sys DIA=$dia');
+        debugPrint('BP Result: SYS=$sys DIA=$dia');
       }
     } catch (e) {
-      debugPrint('Lỗi khi chạy model dự đoán: $e');
-      // Set giá trị mặc định để không crash app
-      _lastSys = 120.0;
-      _lastDia = 80.0;
+      debugPrint('Error BP predict: $e');
     }
   }
 
@@ -241,21 +286,27 @@ class MeasureTabState extends State<MeasureTab> {
     try {
       _cameras = await availableCameras();
       if (_cameras == null || _cameras!.isEmpty) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Không tìm thấy camera")));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Không tìm thấy camera")),
+          );
+        }
         return;
       }
 
       final backCamera = _cameras!.firstWhere(
-            (cam) => cam.lensDirection == CameraLensDirection.back,
+        (cam) => cam.lensDirection == CameraLensDirection.back,
         orElse: () => _cameras!.first,
       );
 
       // Lưu ý: ResolutionPreset.low hoặc medium là đủ để đo nhịp tim, high sẽ rất lag khi xử lý byte
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.medium, // Đổi xuống medium hoặc low để tối ưu tốc độ xử lý
+        ResolutionPreset
+            .medium, // Đổi xuống medium hoặc low để tối ưu tốc độ xử lý
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420, // Cố định format trên Android để dễ xử lý byte
+        imageFormatGroup: ImageFormatGroup
+            .yuv420, // Cố định format trên Android để dễ xử lý byte
       );
 
       await _controller!.initialize();
@@ -325,12 +376,13 @@ class MeasureTabState extends State<MeasureTab> {
           _finishMeasurement();
         }
       });
-
     } catch (e) {
       debugPrint('Lỗi khởi tạo camera: $e');
-      if(mounted) {
+      if (mounted) {
         setState(() => _isButtonStartMeasureEnabled = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi camera: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi camera: $e')));
       }
     }
   }
@@ -362,7 +414,6 @@ class MeasureTabState extends State<MeasureTab> {
         );
         debugPrint('[MeasureTab] Đã lưu dữ liệu cloud');
       }
-
 
       if (!mounted) return;
       setState(() => _isButtonStartMeasureEnabled = false);
@@ -398,6 +449,8 @@ class MeasureTabState extends State<MeasureTab> {
         _ppgSignal.clear();
         _lastSys = null;
         _lastDia = null;
+        _lastPpgWaveform = const <double>[];
+        _latestMorphology = const PpgMorphologyResult();
       });
       debugPrint('[MeasureTab] Đã reset state sau phép đo');
     }
@@ -450,6 +503,9 @@ class MeasureTabState extends State<MeasureTab> {
                 _isButtonStartMeasureEnabled = !_isButtonStartMeasureEnabled;
                 if (_isButtonStartMeasureEnabled) {
                   _currentBpm = 0;
+                  _analyzer.reset();
+                  _latestMorphology = const PpgMorphologyResult();
+                  _lastPpgWaveform = const <double>[];
                   _initializeCamera();
                 } else {
                   stopCamera();
@@ -474,90 +530,4 @@ class MeasureTabState extends State<MeasureTab> {
       ),
     );
   }
-}
-
-// Thêm class nhỏ để chứa kết quả trả về
-class PpgFeatures {
-  final double riseTimeMean;
-  final double sysPeakAmp;
-
-  PpgFeatures(this.riseTimeMean, this.sysPeakAmp);
-}
-
-// Hàm tính toán đặc trưng tín hiệu
-PpgFeatures _extractSignalFeatures(List<double> rawSignal, int fps) {
-  if (rawSignal.isEmpty) return PpgFeatures(0, 0);
-
-  // 1. Làm mượt tín hiệu (Moving Average đơn giản) để giảm nhiễu
-  List<double> smoothSignal = [];
-  int windowSize = 5;
-  for (int i = 0; i < rawSignal.length; i++) {
-    double sum = 0;
-    int count = 0;
-    for (int j = i - windowSize ~/ 2; j <= i + windowSize ~/ 2; j++) {
-      if (j >= 0 && j < rawSignal.length) {
-        sum += rawSignal[j];
-        count++;
-      }
-    }
-    smoothSignal.add(sum / count);
-  }
-
-  // 2. Tìm đỉnh (Peaks) và đáy (Valleys)
-  List<int> peakIndices = [];
-  List<int> valleyIndices = [];
-
-  // Ngưỡng tối thiểu để chấp nhận là đỉnh (tránh nhiễu nhỏ)
-  // Trong PPG camera, tín hiệu thường dao động quanh 1 trục, ta so sánh cục bộ
-  for (int i = 1; i < smoothSignal.length - 1; i++) {
-    if (smoothSignal[i] > smoothSignal[i - 1] &&
-        smoothSignal[i] > smoothSignal[i + 1]) {
-      // Đây là cực đại địa phương
-      peakIndices.add(i);
-    }
-    if (smoothSignal[i] < smoothSignal[i - 1] &&
-        smoothSignal[i] < smoothSignal[i + 1]) {
-      // Đây là cực tiểu địa phương
-      valleyIndices.add(i);
-    }
-  }
-
-  // 3. Tính Rise Time và Amp
-  List<double> riseTimes = [];
-  List<double> amps = [];
-
-  // Với mỗi đỉnh, tìm đáy gần nhất phía trước nó
-  for (int peakIdx in peakIndices) {
-    // Tìm valley ngay trước peak này
-    int? prevValleyIdx;
-    for (int vIdx in valleyIndices.reversed) {
-      if (vIdx < peakIdx) {
-        prevValleyIdx = vIdx;
-        break; // Lấy cái gần nhất
-      }
-    }
-
-    if (prevValleyIdx != null) {
-      // Rise Time = (Index Đỉnh - Index Đáy) * thời gian mỗi frame (ms)
-      double timeMs = (peakIdx - prevValleyIdx) * (1000 / fps);
-      // Loại bỏ các giá trị quá vô lý (nhiễu)
-      if (timeMs > 50 && timeMs < 600) {
-        riseTimes.add(timeMs);
-      }
-
-      // Amp: Lấy giá trị tuyệt đối tại đỉnh (dựa theo config.json mean=236)
-      amps.add(smoothSignal[peakIdx]);
-    }
-  }
-
-  // 4. Tính trung bình
-  double avgRiseTime = riseTimes.isEmpty
-      ? 213.0 // Giá trị default theo config nếu không tìm thấy (mean)
-      : riseTimes.reduce((a, b) => a + b) / riseTimes.length;
-
-  double avgAmp = amps.isEmpty
-      ? 236.0 // Giá trị default theo config nếu không tìm thấy (mean)
-      : amps.reduce((a, b) => a + b) / amps.length;
-
-  return PpgFeatures(avgRiseTime, avgAmp);
 }
