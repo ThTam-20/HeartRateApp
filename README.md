@@ -103,7 +103,9 @@ If using native C++ modules, confirm the NDK path in `local.properties`:
 
 - Add project license (e.g., `MIT`) in `LICENSE` and update this section.
 
-## Collaborators
-<a href="https://github.com/ThTam-20/HeartRateApp/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=ThTam-20/HeartRateApp" />
+## CO-Author
+
+- Thank you Nguyen Phuoc Thanh Tam
+<a href="https://github.com/ThTam-20?tab=repositories">
+  <img src="https://avatars.githubusercontent.com/u/138277233?v=4" />
 </a>
