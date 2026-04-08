@@ -18,15 +18,11 @@ The app also integrates basic AI features to assist in health insights and blood
 
 ## 📱 Demo Screenshots
 
-![Home](images/1.jpg)
-
-![AI](images/2.jpg)
-
-![Result](images/4.jpg)
-
-![History](images/7.jpg)
-
-![Device](images/13.jpg)
+<img src="images/1.jpg" width="180" /> 
+<img src="images/2.jpg" width="180" /> 
+<img src="images/4.jpg" width="180" /> 
+<img src="images/7.jpg" width="180" /> 
+<img src="images/13.jpg" width="180" />
 
 ---
 
