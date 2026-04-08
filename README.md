@@ -1,111 +1,62 @@
-# heart-rate-app
+# BioPulse PPG: Real-time Heart Rate Analysis via Photoplethysmography
 
-A Flutter-based heart rate monitoring application with native Android integration (Kotlin/Java) and optional native C++ components. The app reads heart-rate data from device sensors or BLE heart-rate monitors and displays real-time metrics and historical trends.
+<p align="center">
+  <img src="screenshots/icon.png" width="100px" alt="App Icon"/><br/>
+  <b>BioPulse PPG - Graduation Thesis Project</b>
+</p>
 
-## Features
+## 📋 Project Overview
+**BioPulse PPG** is an innovative mobile application that leverages **Photoplethysmography (PPG)** technology to monitor heart rate and blood pressure indicators in real-time. This project, developed as a graduation thesis for Electronics & IoT, focuses on acquiring and processing raw PPG signals captured by a smartphone camera.
 
-- Real-time heart-rate display
-- Login with google account and auto login on app restart
-- Local storage of session data for trend analysis
-- Lightweight data visualization (charts)
-- Background/foreground handling for continuous monitoring
-- Platform-specific native integrations for Android (Kotlin/Java, optional C++)
+## 🚀 Key Technical Features (AI & Signal Processing Focus)
 
-## Supported platforms & tech stack
-- Mobile: Android (iOS support can be added similarly)
-- Flutter / Dart (UI)
-- Android (Kotlin / Java) for platform channels and permissions
-- Optional native C++ (NDK) modules for performance-critical processing
-- Build system: Gradle
-- Package manager: pub (Dart packages)
+* **PPG Signal Acquisition:** Implementation of high-frequency frame capture and color channel analysis to acquire high-quality raw PPG signals.
+* **Real-time Signal Processing:** Developed advanced algorithms for noise reduction, motion artifact removal, and signal smoothing.
+* **PPG Morphology Analysis:** Extracted key morphological features, such as systolic peaks and diastolic troughs, to achieve precise heart rate estimation.
+* **AI-Assisted Analysis:** Integrated AI capabilities to provide personalized health insights based on the collected physiological data.
 
-## Prerequisites
+## 🛠 Tech Stack
 
-- Flutter SDK (stable channel)
-- Android Studio (recommended) with Android SDK
-- For native C++: Android NDK (if using native modules)
-- A physical Android device or emulator with BLE/sensor support
-- (Optional) BLE heart-rate monitor for external device testing
+* **Framework:** Flutter (Dart)
+* **Core Logic:** Fast signal processing and peak detection algorithms implemented in Dart.
 
-## Quick start
+---
 
-1. Clone the repository
-    - git clone <repository-url>
-2. Enter project directory
-    - cd heart-rate-app
-3. Get Dart/Flutter dependencies
-    - flutter pub get
-4. Run on connected device or emulator
-    - flutter run
+## 📱 Application Demo
 
-## Android-specific setup
+Explore the core functionalities of the **BioPulse PPG** application through these screenshots:
 
-- Ensure `minSdkVersion` and `targetSdkVersion` in `android/app/build.gradle` meet the plugin requirements.
-- Add required Android permissions to `android/app/src/main/AndroidManifest.xml`:
-    - `android.permission.BLUETOOTH`
-    - `android.permission.BLUETOOTH_ADMIN`
-    - `android.permission.ACCESS_FINE_LOCATION` (if required for BLE scanning on some Android versions)
-    - `android.permission.BODY_SENSORS` (for direct sensor access)
-- Request runtime permissions from the app before accessing sensors or BLE.
+<table style="width:100%; text-align:center;">
+  <tr>
+    <td style="width:50%;">
+      <img src="screenshots/ui_start.png" width="300px" alt="Main Measurement Interface"/><br/>
+      <b>1. Ready to Measure</b><br/>
+      The intuitive dashboard where users start the measurement process, with a placeholder for the real-time PPG waveform.
+    </td>
+    <td style="width:50%;">
+      <img src="screenshots/ui_result.png" width="300px" alt="Heart Rate and PPG Waveform"/><br/>
+      <b>2. Real-time Results</b><br/>
+      Displays the calculated Heart Rate (BPM) and, most importantly, the **live raw PPG signal** extracted from the camera feed.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="screenshots/ui_history.png" width="300px" alt="Data History Log"/><br/>
+      <b>3. Personalized History</b><br/>
+      A comprehensive log for tracking and managing previous blood pressure and heart rate measurements over time.
+    </td>
+    <td>
+      <img src="screenshots/ui_bot.png" width="300px" alt="AI-Powered Health Bot"/><br/>
+      <b>4. AI Health Assistant</b><br/>
+      Engage with an AI bot that analyzes your historical data and provides context-aware health recommendations.
+    </td>
+  </tr>
+</table>
 
-If using native C++ modules, confirm the NDK path in `local.properties`:
-- `ndk.dir=/path/to/android-ndk`
+### 🧠 Technical Insight: Peak Detection Algorithm
+A critical component of this project is the **Peak Detection Algorithm**. By analyzing the raw PPG signal (visible in screenshot 2), the algorithm identifies **systolic peaks**. The precise time interval between these peaks (the **RR-interval**) is then used to calculate the instantaneous Heart Rate (BPM), a foundational skill for further AI/ML applications in healthcare.
 
-## Project structure (high level)
 
-- `lib/` — Dart source (UI, state management, business logic)
-- `android/` — Android platform code (Kotlin/Java, Gradle configs)
-- `ios/` — iOS platform code (if present)
-- `cpp/` or `android/src/main/cpp/` — optional C++ native code
-- `test/` — Dart unit tests
-- `integration_test/` — integration/e2e tests
-- `pubspec.yaml` — Dart package & asset configuration
 
-## Architecture overview
-
-- Presentation: Flutter widgets and charts in `lib/ui`
-- State: Provider / Bloc / Riverpod (project default) in `lib/state`
-- Platform integration: Platform channels (method/event) implemented in `android/` for sensor/BLE access
-- Data persistence: lightweight local storage (sqflite/shared_preferences/hive) in `lib/data`
-- Optional C++ modules for signal processing exposed through JNI/FFI
-
-## Usage notes
-
-- When connecting to BLE devices, scan, pair, and subscribe to heart-rate characteristic (standard BLE HR profile UUIDs).
-- Respect platform-specific battery and permission policies when performing background monitoring.
-
-## Testing
-
-- Run unit tests:
-    - flutter test
-- Run integration tests:
-    - flutter drive --driver=test_driver/integration_driver.dart --target=integration_test/app_test.dart
-- For Android instrumentation or native tests, use Android Studio / Gradle as required.
-
-## CI / Build tips
-
-- Cache `~/.pub-cache` and `~/.gradle` in CI to speed builds.
-- Use `flutter build apk --release` for production APKs.
-- Sign release builds by configuring `android/app/signingConfigs` in `build.gradle`.
-
-## Contributing
-
-- Follow the existing code style and lint rules (`analysis_options.yaml`).
-- Write unit tests for new logic in `test/`.
-- Open issues or PRs with clear descriptions and steps to reproduce.
-
-## Troubleshooting
-
-- If BLE scanning fails on Android 12+, ensure proper BLUETOOTH permissions and declare `BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT` where required.
-- If sensors return null or zero, verify device sensor availability and runtime permissions.
-
-## License
-
-- Add project license (e.g., `MIT`) in `LICENSE` and update this section.
-
-## CO-Author
-
-- Thank you Nguyen Phuoc Thanh Tam
-<a href="https://github.com/ThTam-20?tab=repositories">
-  <img src="https://avatars.githubusercontent.com/u/138277233?v=4" />
-</a>
+---
+*Graduation Thesis - Electronics & IoT - Industrial University of Ho Chi Minh City (IUH)*
