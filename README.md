@@ -18,22 +18,17 @@ The app also integrates basic AI features to assist in health insights and blood
 
 ## 📱 Demo Screenshots
 
-### 🏠 Home Screen
 ![Home](images/home.jpg)
 
-### 🤖 AI Assistant
+
 ![AI](images/ai.jpg)
 
-### 📊 Result Screen
 ![Result](images/result.jpg)
 
-### 📈 History Chart
 ![Chart](images/chart.jpg)
 
-### 📋 Measurement History
 ![History](images/history.jpg)
 
-### 📷 Real Device Demo
 ![Device](images/device.jpg)
 
 ---
