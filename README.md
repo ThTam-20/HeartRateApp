@@ -18,8 +18,8 @@ The app also integrates basic AI features to assist in health insights and blood
 
 ## 📱 Demo Screenshots
 
-<img src="images/1.jpg" width="200" />   <img src="images/2.jpg" width="200" />   <img src="images/4.jpg" width="200" /> 
-<img src="images/7.jpg" width="200" />   <img src="images/13.jpg" width="200" />
+<img src="images/1.jpg" width="300" />   <img src="images/2.jpg" width="300" />   <img src="images/4.jpg" width="300" /> 
+<img src="images/7.jpg" width="300" />   <img src="images/13.jpg" width="300" />
 
 ---
 
@@ -50,24 +50,16 @@ The results are not intended for medical diagnosis.
 
 ---
 
-## 👥 Authors
+## 👨‍💻 Authors
 
-<table style="border: none;">
-  <tr>
-    <td align="center" style="border: none;">
-      <a href="https://github.com/ThTam-20">
-        <img src="https://github.com/ThTam-20.png" width="100px;" style="border-radius:50%;" alt="Thanh Tam"/><br />
-        <sub><b>Nguyen Phuoc Thanh Tam</b></sub>
-      </a>
-    </td>
-    <td align="center" style="border: none;">
-      <a href="https://github.com/quocnhat02092003">
-        <img src="https://github.com/quocnhat02092003.png" width="100px;" style="border-radius:50%;" alt="Quoc Nhat"/><br />
-        <sub><b>Quoc Nhat (Co-Author)</b></sub>
-      </a>
-    </td>
-  </tr>
-</table>
+- **Nguyen Phuoc Thanh Tam**
+- **Quoc Nhat** (Co-Author)
+
+- Thank you **Quoc Nhat**
+
+<a href="https://github.com/quocnhat02092003">
+  <img src="https://github.com/quocnhat02092003.png" width="100" style="border-radius:50%;" />
+</a>
 
 ## 🤝 Acknowledgement
 
