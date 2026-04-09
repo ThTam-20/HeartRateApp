@@ -64,3 +64,7 @@ The results are not intended for medical diagnosis.
 ## 🤝 Acknowledgement
 
 Special thanks to all contributors and research references used in this project.
+
+## ⭐️ML Model
+Training source code:  
+https://github.com/ThTam-20/BP_Prediction_model
