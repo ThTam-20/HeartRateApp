@@ -58,7 +58,7 @@ The results are not intended for medical diagnosis.
 - Thank you **Quoc Nhat**
 
 <a href="https://github.com/quocnhat02092003">
-  <img src="https://github.com/quocnhat02092003.png" width="100" style="border-radius:50%;" />
+  <img src="https://github.com/quocnhat02092003.png" width="100" style="border-radius:70%;" />
 </a>
 
 ## 🤝 Acknowledgement
@@ -66,5 +66,4 @@ The results are not intended for medical diagnosis.
 Special thanks to all contributors and research references used in this project.
 
 ## ⭐️ML Model
-Training source code:  
-https://github.com/ThTam-20/BP_Prediction_model
+[BP_Prediction_model](https://github.com/ThTam-20/BP_Prediction_model)
