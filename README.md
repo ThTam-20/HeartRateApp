@@ -55,15 +55,9 @@ The results are not intended for medical diagnosis.
 - **Nguyen Phuoc Thanh Tam**
 - **Quoc Nhat** (Co-Author)
 
-- Thank you **Quoc Nhat**
-
 <a href="https://github.com/quocnhat02092003">
-  <img src="https://github.com/quocnhat02092003.png" width="100" style="border-radius:70%;" />
+  <img src="https://github.com/quocnhat02092003.png" width="100" style="border-radius:90%;" />
 </a>
-
-## 🤝 Acknowledgement
-
-Special thanks to all contributors and research references used in this project.
 
 ## ⭐️ML Model
 [BP_Prediction_model](https://github.com/ThTam-20/BP_Prediction_model)
