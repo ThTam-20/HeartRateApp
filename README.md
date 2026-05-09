@@ -2,6 +2,7 @@
 
 A mobile application for **real-time heart rate monitoring** using PPG signal analysis, built with Flutter.  
 The app also integrates basic AI features to assist in health insights and blood pressure estimation.
+
 Video demo: https://youtu.be/N8sN-auH0sM
 ---
 
